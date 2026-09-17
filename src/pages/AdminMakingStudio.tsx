@@ -23,6 +23,15 @@ export default function AdminMakingStudio() {
   const [importResult, setImportResult] = useState<string | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
 
+  // 独立デプロイ後は環境変数で接続先だけ差し替える。
+  // 未設定時は現行の安全な管理ルートを維持し、移行中の導線を壊さない。
+  const adminConsoleUrl =
+    (import.meta.env.VITE_ADMIN_CONSOLE_URL as string | undefined) ||
+    "https://wonderland-renatural.vercel.app/admin";
+  const cloudAgentUrl =
+    (import.meta.env.VITE_CLOUD_AGENT_URL as string | undefined) ||
+    "https://wonderland-renatural.vercel.app/cloud-agent";
+
   // Composer State
   const [testEmail, setTestEmail] = useState("");
   const [testSubject, setTestSubject] = useState("Re'natural より大切なお知らせ");
@@ -174,7 +183,7 @@ export default function AdminMakingStudio() {
               Re'natural 自律型マーケティング＆リッチステップ配信エンジン
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={fetchStatus}
               disabled={loading}
@@ -183,10 +192,16 @@ export default function AdminMakingStudio() {
               🔄 最新状態に更新
             </button>
             <a
-              href="https://wonderland-renatural.vercel.app/admin"
+              href={cloudAgentUrl}
+              className="px-3 py-1.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 transition"
+            >
+              💎 Cloud Agentへ工事依頼
+            </a>
+            <a
+              href={adminConsoleUrl}
               className="px-3 py-1.5 text-sm bg-stone-800 text-white rounded-lg hover:bg-stone-700 transition"
             >
-              WonderLand TOPへ
+              管理画面へ
             </a>
           </div>
         </div>
@@ -222,9 +237,9 @@ export default function AdminMakingStudio() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-2.5 font-medium text-sm transition border-b-2 -mb-px ${
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
                 activeTab === tab.id
-                  ? "border-emerald-600 text-emerald-700 bg-white rounded-t-lg"
+                  ? "border-emerald-600 text-emerald-700"
                   : "border-transparent text-stone-500 hover:text-stone-700"
               }`}
             >
@@ -233,64 +248,51 @@ export default function AdminMakingStudio() {
           ))}
         </div>
 
-        {/* タブ 1: 配信キュー & ログ */}
         {activeTab === "queue" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-stone-200">
-              <div>
-                <h3 className="font-bold text-stone-900">配信キュー実行</h3>
-                <p className="text-xs text-stone-500">スケジュール時刻に達した未送信メールを一括処理します</p>
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+              <h2 className="font-bold text-lg">配信キュー操作</h2>
+              <p className="text-sm text-stone-500">
+                待機中のメールを処理します。SENDGRID_API_KEY が設定されている場合は実送信されます。
+              </p>
               <button
                 onClick={handleProcessQueue}
                 disabled={loading}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium text-sm shadow-sm"
+                className="w-full px-4 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 disabled:opacity-50"
               >
-                ▶ 今すぐキューを処理する
+                {loading ? "処理中..." : "▶ キューを処理する"}
               </button>
             </div>
-
-            <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
-              <div className="p-4 border-b border-stone-100 font-bold text-stone-800">配信ログ履歴</div>
-              {logs.length === 0 ? (
-                <div className="p-8 text-center text-stone-400 text-sm">配信ログはまだありません</div>
-              ) : (
-                <div className="divide-y divide-stone-100">
-                  {logs.map((log, idx) => (
-                    <div key={idx} className="p-3 text-xs flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded font-semibold ${log.status === "success" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-                          {log.status}
-                        </span>
-                        <span className="font-mono text-stone-700">{log.recipient}</span>
-                        <span className="text-stone-400">({log.category})</span>
-                      </div>
-                      <span className="text-stone-400">{new Date(log.timestamp).toLocaleString("ja-JP")}</span>
+            <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+              <h2 className="font-bold text-lg mb-4">最近の配信ログ</h2>
+              <div className="space-y-2 max-h-96 overflow-auto">
+                {logs.length === 0 ? (
+                  <div className="text-sm text-stone-400">まだ配信ログはありません。</div>
+                ) : (
+                  logs.map((log, idx) => (
+                    <div key={log.id || idx} className="text-xs border-b border-stone-100 pb-2">
+                      <div className="font-medium">{log.recipient}</div>
+                      <div className="text-stone-500">{log.category} / {log.status}</div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* タブ 2: 全9話ステップ配信 */}
         {activeTab === "steps" && (
-          <div className="bg-white rounded-xl border border-stone-200 p-6 space-y-4 shadow-sm">
-            <div>
-              <h3 className="font-bold text-stone-900 text-lg">Re'natural 統一ステップメール（全9話）</h3>
-              <p className="text-xs text-stone-500 mt-1">登録初日から順次配信される心温まるストーリーシナリオ</p>
-            </div>
+          <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+            <h2 className="font-bold text-lg mb-4">全9話ステップメール</h2>
             <div className="space-y-3">
               {stepSeries.map((step) => (
-                <div key={step.stepNumber} className="flex items-start gap-4 p-3 bg-stone-50 rounded-lg border border-stone-100">
-                  <div className="w-16 text-center font-bold text-emerald-700 bg-emerald-50 py-1.5 rounded border border-emerald-200">
-                    第{step.stepNumber}話
-                    <div className="text-[10px] text-stone-500 font-normal">Day {step.delayDays}</div>
+                <div key={step.stepNumber} className="p-4 rounded-xl border border-stone-200 flex items-start gap-4">
+                  <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                    {step.stepNumber}
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-sm text-stone-800">{step.title}</h4>
-                    <p className="text-xs text-stone-500 mt-0.5">カテゴリ: {step.category}</p>
+                  <div>
+                    <div className="font-semibold text-sm">{step.title}</div>
+                    <div className="text-xs text-stone-500 mt-1">登録から {step.delayDays} 日後 / {step.category}</div>
                   </div>
                 </div>
               ))}
@@ -298,128 +300,85 @@ export default function AdminMakingStudio() {
           </div>
         )}
 
-        {/* タブ 3: 顧客 & BizCreate移行 */}
         {activeTab === "subscribers" && (
-          <div className="bg-white rounded-xl border border-stone-200 p-6 space-y-6 shadow-sm">
-            <div>
-              <h3 className="font-bold text-stone-900 text-lg">BizCreate CSV インポート</h3>
-              <p className="text-xs text-stone-500 mt-1">BizCreateや他社スタンドからエクスポートしたCSVを貼り付けて一括移行します</p>
-            </div>
-            <textarea
-              value={csvInput}
-              onChange={(e) => setCsvInput(e.target.value)}
-              placeholder={`メールアドレス,氏名,タグ\nuser1@example.com,山田花子,bizcreate_migrated;product_a\nuser2@example.com,佐藤太郎,bizcreate_migrated`}
-              rows={6}
-              className="w-full p-3 font-mono text-xs border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-            <div className="flex items-center justify-between">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+              <h2 className="font-bold text-lg mb-2">BizCreate CSV移行</h2>
+              <p className="text-sm text-stone-500 mb-4">CSV本文を貼り付けて購読者をインポートします。</p>
+              <textarea
+                value={csvInput}
+                onChange={(e) => setCsvInput(e.target.value)}
+                className="w-full h-52 p-3 text-xs font-mono border border-stone-300 rounded-xl"
+                placeholder="email,name,tags\nexample@example.com,山田太郎,tag1;tag2"
+              />
               <button
                 onClick={handleImportCsv}
                 disabled={loading}
-                className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium text-sm shadow-sm"
+                className="mt-3 w-full px-4 py-3 rounded-xl bg-stone-800 text-white font-semibold hover:bg-stone-700 disabled:opacity-50"
               >
-                📥 CSVデータを一括インポートする
+                CSVをインポート
               </button>
-              {importResult && <span className="text-sm font-medium">{importResult}</span>}
+              {importResult && <div className="mt-3 text-sm">{importResult}</div>}
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+              <h2 className="font-bold text-lg mb-2">購読者・セグメント状態</h2>
+              <div className="text-sm text-stone-600 space-y-2">
+                <p>登録購読者数: <strong>{status?.totalSubscribers || 0}</strong></p>
+                <p>タグ・セグメント情報は API 側の MarketingSubscriber に保持されます。</p>
+              </div>
             </div>
           </div>
         )}
 
-        {/* タブ 4: リッチメッセージ作成 */}
         {activeTab === "composer" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border border-stone-200 p-6 space-y-4 shadow-sm">
-              <h3 className="font-bold text-stone-900 text-lg">リッチメール作成 ＆ テスト配信</h3>
-              <div>
-                <label className="text-xs font-semibold text-stone-600">件名 (Subject)</label>
-                <input
-                  type="text"
-                  value={testSubject}
-                  onChange={(e) => setTestSubject(e.target.value)}
-                  className="w-full mt-1 p-2.5 text-sm border border-stone-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600">見出し (Heading)</label>
-                <input
-                  type="text"
-                  value={testHeading}
-                  onChange={(e) => setTestHeading(e.target.value)}
-                  className="w-full mt-1 p-2.5 text-sm border border-stone-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600">本文 (Body Text)</label>
-                <textarea
-                  value={testText}
-                  onChange={(e) => setTestText(e.target.value)}
-                  rows={4}
-                  className="w-full mt-1 p-2.5 text-sm border border-stone-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600">CTAボタン表示名 ＆ リンクURL</label>
-                <div className="grid grid-cols-2 gap-2 mt-1">
-                  <input
-                    type="text"
-                    value={testButtonText}
-                    onChange={(e) => setTestButtonText(e.target.value)}
-                    placeholder="ボタン文字"
-                    className="p-2.5 text-sm border border-stone-300 rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    value={testButtonUrl}
-                    onChange={(e) => setTestButtonUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="p-2.5 text-sm border border-stone-300 rounded-lg"
-                  />
-                </div>
-              </div>
-              <div className="border-t border-stone-100 pt-4">
-                <label className="text-xs font-semibold text-stone-600">テスト送信先メールアドレス</label>
-                <div className="flex gap-2 mt-1">
-                  <input
-                    type="email"
-                    value={testEmail}
-                    onChange={(e) => setTestEmail(e.target.value)}
-                    placeholder="info@renatural.org"
-                    className="flex-1 p-2.5 text-sm border border-stone-300 rounded-lg"
-                  />
-                  <button
-                    onClick={handleTestSend}
-                    disabled={loading}
-                    className="px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium text-sm"
-                  >
-                    🚀 テスト送信
-                  </button>
-                </div>
-                {sendResult && <p className="text-xs font-medium text-stone-600 mt-2">{sendResult}</p>}
-              </div>
-            </div>
-
-            {/* プレビュー表示 */}
-            <div className="bg-stone-100 rounded-xl border border-stone-300 p-6 flex flex-col justify-start">
-              <div className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">メールプレビュー</div>
-              <div className="bg-white rounded-lg p-6 shadow-sm border border-stone-200 space-y-4">
-                <h2 className="text-xl font-bold text-stone-900 border-b border-stone-100 pb-2">🌿 {testHeading}</h2>
-                <p className="text-sm text-stone-700 leading-relaxed whitespace-pre-wrap">{testText}</p>
-                <div className="pt-2 text-center">
-                  <a
-                    href={testButtonUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block bg-blue-700 text-white font-bold px-6 py-3 rounded-full text-sm shadow hover:bg-blue-800 transition"
-                  >
-                    {testButtonText}
-                  </a>
-                </div>
-                <div className="border-t border-stone-100 pt-4 text-center text-[11px] text-stone-400">
-                  ※本メールは Re'natural のご案内をお届けしています。<br />
-                  <span className="underline cursor-pointer">こちらからワンクリックで解除</span> できます。
-                </div>
-              </div>
-            </div>
+          <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+            <h2 className="font-bold text-lg">リッチメッセージ テスト送信</h2>
+            <input
+              type="email"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              placeholder="送信先メールアドレス"
+              className="w-full p-3 border border-stone-300 rounded-xl"
+            />
+            <input
+              value={testSubject}
+              onChange={(e) => setTestSubject(e.target.value)}
+              placeholder="件名"
+              className="w-full p-3 border border-stone-300 rounded-xl"
+            />
+            <input
+              value={testHeading}
+              onChange={(e) => setTestHeading(e.target.value)}
+              placeholder="見出し"
+              className="w-full p-3 border border-stone-300 rounded-xl"
+            />
+            <textarea
+              value={testText}
+              onChange={(e) => setTestText(e.target.value)}
+              rows={5}
+              placeholder="本文"
+              className="w-full p-3 border border-stone-300 rounded-xl"
+            />
+            <input
+              value={testButtonText}
+              onChange={(e) => setTestButtonText(e.target.value)}
+              placeholder="ボタン文言"
+              className="w-full p-3 border border-stone-300 rounded-xl"
+            />
+            <input
+              value={testButtonUrl}
+              onChange={(e) => setTestButtonUrl(e.target.value)}
+              placeholder="ボタンURL"
+              className="w-full p-3 border border-stone-300 rounded-xl"
+            />
+            <button
+              onClick={handleTestSend}
+              disabled={loading}
+              className="w-full px-4 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 disabled:opacity-50"
+            >
+              {loading ? "送信中..." : "テスト送信する"}
+            </button>
+            {sendResult && <div className="text-sm">{sendResult}</div>}
           </div>
         )}
       </div>
