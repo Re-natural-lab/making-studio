@@ -119,6 +119,7 @@ export default function AdminMakingStudio() {
       setLoading(true);
       const payload = {
         action: "enqueue",
+        campaignKey: `making-studio:test:${crypto.randomUUID()}`,
         recipients: [{ email: testEmail, name: "テスト読者" }],
         category: "test_delivery",
         message: {
