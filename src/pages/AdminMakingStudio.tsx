@@ -15,6 +15,35 @@ interface StepItem {
   category: string;
 }
 
+interface CustomerRow {
+  id: number;
+  primaryEmail: string;
+  displayName?: string | null;
+  status: "active" | "merged" | "deleted";
+  createdAt: string;
+  subscription?: {
+    status: "subscribed" | "unsubscribed" | "bounced" | "complained";
+    source: string;
+    updatedAt: string;
+  } | null;
+}
+
+interface CustomerDetail {
+  customer: CustomerRow;
+  subscriptions: any[];
+  consentEvents: any[];
+  tags: any[];
+  segments: any[];
+  entitlements: any[];
+  communication: {
+    threads: any[];
+    messages: any[];
+    jobs: any[];
+    attempts: any[];
+    providerEvents: any[];
+  };
+}
+
 async function readApiResponse(res: Response) {
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.success) {
@@ -32,6 +61,11 @@ export default function AdminMakingStudio() {
   const [csvInput, setCsvInput] = useState("");
   const [importResult, setImportResult] = useState<string | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [customerError, setCustomerError] = useState<string | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetail | null>(null);
 
   // 独立デプロイ後は環境変数で接続先だけ差し替える。
   // 未設定時は現行の安全な管理ルートを維持し、移行中の導線を壊さない。
@@ -74,6 +108,43 @@ export default function AdminMakingStudio() {
   useEffect(() => {
     fetchStatus();
   }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      setCustomerLoading(true);
+      setCustomerError(null);
+      const params = new URLSearchParams({ action: "listCustomers", limit: "50" });
+      if (customerQuery.trim()) params.set("query", customerQuery.trim());
+      const res = await fetch(`/api/making-studio?${params.toString()}`);
+      const data = await readApiResponse(res);
+      setCustomers(data.customers || []);
+    } catch (err: any) {
+      setCustomers([]);
+      setSelectedCustomer(null);
+      setCustomerError(err?.message || "顧客一覧を取得できません");
+    } finally {
+      setCustomerLoading(false);
+    }
+  };
+
+  const fetchCustomerDetail = async (customerId: number) => {
+    try {
+      setCustomerLoading(true);
+      setCustomerError(null);
+      const res = await fetch(`/api/making-studio?action=getCustomer&customerId=${customerId}`);
+      const data = await readApiResponse(res);
+      setSelectedCustomer(data as CustomerDetail);
+    } catch (err: any) {
+      setSelectedCustomer(null);
+      setCustomerError(err?.message || "顧客詳細を取得できません");
+    } finally {
+      setCustomerLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "subscribers") fetchCustomers();
+  }, [activeTab]);
 
   const handleProcessQueue = async () => {
     try {
@@ -344,14 +415,103 @@ export default function AdminMakingStudio() {
               {importResult && <div className="mt-3 text-sm">{importResult}</div>}
             </div>
             <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
-              <h2 className="font-bold text-lg mb-2">購読者・セグメント状態</h2>
-              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                現在は登録人数の集計のみです。個人一覧・タグ／セグメント絞り込み・購入状況・配信／開封／クリック履歴は、まだこの画面に接続されていません。
+              <h2 className="font-bold text-lg mb-2">顧客・購読・行動履歴</h2>
+              <p className="text-sm text-stone-500 mb-4">
+                Canonical DBの実データをOwner専用APIから読み取ります。検索結果は最大50件です。
+              </p>
+              <form
+                className="flex gap-2 mb-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  fetchCustomers();
+                }}
+              >
+                <input
+                  value={customerQuery}
+                  onChange={(event) => setCustomerQuery(event.target.value)}
+                  placeholder="名前またはメールで検索"
+                  className="min-w-0 flex-1 p-2.5 border border-stone-300 rounded-xl text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={customerLoading}
+                  className="px-4 rounded-xl bg-stone-800 text-white text-sm disabled:opacity-50"
+                >
+                  検索
+                </button>
+              </form>
+
+              {customerError && (
+                <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                  実データを取得できません：{customerError}
+                </div>
+              )}
+
+              <div className="space-y-2 max-h-72 overflow-auto">
+                {customerLoading && customers.length === 0 ? (
+                  <div className="text-sm text-stone-400">読み込み中…</div>
+                ) : customers.length === 0 && !customerError ? (
+                  <div className="text-sm text-stone-400">該当する顧客はいません。</div>
+                ) : (
+                  customers.map((customer) => (
+                    <button
+                      key={customer.id}
+                      onClick={() => fetchCustomerDetail(customer.id)}
+                      className="w-full rounded-xl border border-stone-200 p-3 text-left hover:border-emerald-400"
+                    >
+                      <div className="font-medium text-sm">{customer.displayName || "名称未設定"}</div>
+                      <div className="text-xs text-stone-500 break-all">{customer.primaryEmail}</div>
+                      <div className="mt-1 text-xs text-stone-600">
+                        顧客: {customer.status} ／ 購読: {customer.subscription?.status || "記録なし"}
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
-              <div className="text-sm text-stone-600 space-y-2">
-                <p>登録購読者数: <strong>{status?.totalSubscribers || 0}</strong></p>
-                <p>タグ・セグメント情報は API 側の MarketingSubscriber に保持されます。</p>
-              </div>
+
+              {selectedCustomer && (
+                <div className="mt-5 border-t border-stone-200 pt-4 space-y-3 text-sm">
+                  <div>
+                    <div className="font-bold">{selectedCustomer.customer.displayName || "名称未設定"}</div>
+                    <div className="text-stone-500 break-all">{selectedCustomer.customer.primaryEmail}</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-lg bg-stone-50 p-2">購読履歴 <strong>{selectedCustomer.subscriptions.length}</strong></div>
+                    <div className="rounded-lg bg-stone-50 p-2">同意履歴 <strong>{selectedCustomer.consentEvents.length}</strong></div>
+                    <div className="rounded-lg bg-stone-50 p-2">タグ <strong>{selectedCustomer.tags.length}</strong></div>
+                    <div className="rounded-lg bg-stone-50 p-2">セグメント <strong>{selectedCustomer.segments.length}</strong></div>
+                    <div className="rounded-lg bg-stone-50 p-2">購入権限 <strong>{selectedCustomer.entitlements.length}</strong></div>
+                    <div className="rounded-lg bg-stone-50 p-2">連絡スレッド <strong>{selectedCustomer.communication.threads.length}</strong></div>
+                    <div className="rounded-lg bg-stone-50 p-2">メッセージ <strong>{selectedCustomer.communication.messages.length}</strong></div>
+                    <div className="rounded-lg bg-stone-50 p-2">開封・クリック等 <strong>{selectedCustomer.communication.providerEvents.length}</strong></div>
+                  </div>
+                  {selectedCustomer.tags.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-stone-500 mb-1">タグ</div>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedCustomer.tags.map((entry, index) => (
+                          <span key={entry.tag?.id || index} className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-800">
+                            {entry.tag?.name || entry.tag?.slug}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedCustomer.communication.providerEvents.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-stone-500 mb-1">最近の行動</div>
+                      <div className="space-y-1 max-h-32 overflow-auto text-xs">
+                        {selectedCustomer.communication.providerEvents.slice(0, 20).map((event) => (
+                          <div key={event.id} className="flex justify-between gap-2 border-b border-stone-100 py-1">
+                            <span>{event.eventType}</span>
+                            <span className="text-stone-400">{new Date(event.occurredAt).toLocaleString("ja-JP")}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
