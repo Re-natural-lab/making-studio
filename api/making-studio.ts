@@ -31,6 +31,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const action = String(req.query.action || req.body?.action || "status");
   const target = new URL("/api/making-studio", canonicalApiUrl);
+  for (const [key, value] of Object.entries(req.query)) {
+    if (Array.isArray(value)) {
+      value.forEach(entry => target.searchParams.append(key, String(entry)));
+    } else if (value !== undefined) {
+      target.searchParams.set(key, String(value));
+    }
+  }
   target.searchParams.set("action", action);
 
   try {
