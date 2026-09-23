@@ -303,7 +303,10 @@ export default function AdminMakingStudio() {
 
         {activeTab === "steps" && (
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
-            <h2 className="font-bold text-lg mb-4">全9話ステップメール</h2>\n            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">\n              現在はシナリオ一覧の確認画面です。本文編集・話数追加・カテゴリー別シナリオ作成・保存は、まだ接続されていません。\n            </div>
+            <h2 className="font-bold text-lg mb-4">全9話ステップメール</h2>
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              現在はシナリオ一覧の確認画面です。本文編集・話数追加・カテゴリー別シナリオ作成・保存は、まだ接続されていません。
+            </div>
             <div className="space-y-3">
               {stepSeries.map((step) => (
                 <div key={step.stepNumber} className="p-4 rounded-xl border border-stone-200 flex items-start gap-4">
@@ -341,7 +344,10 @@ export default function AdminMakingStudio() {
               {importResult && <div className="mt-3 text-sm">{importResult}</div>}
             </div>
             <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
-              <h2 className="font-bold text-lg mb-2">購読者・セグメント状態</h2>\n              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">\n                現在は登録人数の集計のみです。個人一覧・タグ／セグメント絞り込み・購入状況・配信／開封／クリック履歴は、まだこの画面に接続されていません。\n              </div>
+              <h2 className="font-bold text-lg mb-2">購読者・セグメント状態</h2>
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                現在は登録人数の集計のみです。個人一覧・タグ／セグメント絞り込み・購入状況・配信／開封／クリック履歴は、まだこの画面に接続されていません。
+              </div>
               <div className="text-sm text-stone-600 space-y-2">
                 <p>登録購読者数: <strong>{status?.totalSubscribers || 0}</strong></p>
                 <p>タグ・セグメント情報は API 側の MarketingSubscriber に保持されます。</p>
@@ -352,7 +358,10 @@ export default function AdminMakingStudio() {
 
         {activeTab === "composer" && (
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
-            <h2 className="font-bold text-lg">単発リッチメッセージ テスト送信</h2>\n            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">\n              ここで作る内容は単発テスト用です。テンプレートやステップシナリオとしての保存・再編集は、まだ接続されていません。\n            </div>
+            <h2 className="font-bold text-lg">単発リッチメッセージ テスト送信</h2>
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+              ここで作る内容は単発テスト用です。テンプレートやステップシナリオとしての保存・再編集は、まだ接続されていません。
+            </div>
             <input
               type="email"
               value={testEmail}
