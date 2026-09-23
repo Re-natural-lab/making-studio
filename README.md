@@ -25,10 +25,15 @@ CANONICAL_API_URL=https://<wonderland-canonical-host>
 `CANONICAL_API_URL` 未設定、Owner sessionなし、またはcanonical API到達不能時は
 fail-closedします。SendGrid key・DB credential・JWT secretをこのrepoへ置かないでください。
 
-## 主な機能
+## 現在接続されている機能
 
 - リッチメッセージ作成・テスト配信
-- 全9話ステップメール運用
+- 固定9話ステップメールの一覧表示（編集・保存は未接続）
 - BizCreate CSVインポート
+- 購読者数の集計（個人一覧・セグメント画面は未接続）
 - durable queue / delivery attemptの運用確認
 - React + Tailwind UI
+
+オープン前に必要な未接続機能と受け入れ条件は
+[`docs/EMAIL_OPERATIONS_GAP_AUDIT_20260923.md`](docs/EMAIL_OPERATIONS_GAP_AUDIT_20260923.md)
+を正本とします。
