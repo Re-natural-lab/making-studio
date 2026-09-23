@@ -15,20 +15,10 @@ interface StepItem {
   category: string;
 }
 
-async function readApiResponse(res: Response) {
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data?.success) {
-    const message = data?.error || data?.message || `HTTP ${res.status}`;
-    throw new Error(message);
-  }
-  return data;
-}
-
 export default function AdminMakingStudio() {
   const [activeTab, setActiveTab] = useState<"queue" | "steps" | "subscribers" | "composer">("queue");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<any>(null);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [csvInput, setCsvInput] = useState("");
   const [importResult, setImportResult] = useState<string | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
@@ -37,34 +27,34 @@ export default function AdminMakingStudio() {
   // 未設定時は現行の安全な管理ルートを維持し、移行中の導線を壊さない。
   const adminConsoleUrl =
     (import.meta.env.VITE_ADMIN_CONSOLE_URL as string | undefined) ||
-    "https://renatural-admin-console.vercel.app/";
+    "https://wonderland-renatural.vercel.app/admin";
   const cloudAgentUrl =
     (import.meta.env.VITE_CLOUD_AGENT_URL as string | undefined) ||
-    "https://renatural-atelier.vercel.app/";
+    "https://wonderland-renatural.vercel.app/cloud-agent";
 
   // Composer State
   const [testEmail, setTestEmail] = useState("");
   const [testSubject, setTestSubject] = useState("Re'natural より大切なお知らせ");
   const [testHeading, setTestHeading] = useState("心地よい暮らしとオンリーワンの仕組み");
   const [testText, setTestText] = useState("数字を追うのをやめたら、毎日の8割が自由な遊びに変わりました。");
-  const [testButtonUrl, setTestButtonUrl] = useState("https://wonderland.renatural.jp/nature-nomad-life");
+  const [testButtonUrl, setTestButtonUrl] = useState("https://renatural.org/nature-nomad-life");
   const [testButtonText, setTestButtonText] = useState("Nature Nomad Life を見る");
   const [sendResult, setSendResult] = useState<string | null>(null);
 
   const fetchStatus = async () => {
     try {
       setLoading(true);
-      setConnectionError(null);
       const res = await fetch("/api/making-studio?action=status");
-      const data = await readApiResponse(res);
-      setStatus(data);
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data);
+      }
       const logRes = await fetch("/api/making-studio?action=getLogs");
-      const logData = await readApiResponse(logRes);
-      setLogs(logData.logs || []);
-    } catch (err: any) {
-      setStatus(null);
-      setLogs([]);
-      setConnectionError(err?.message || "Canonical APIへ接続できません");
+      if (logRes.ok) {
+        const logData = await logRes.json();
+        setLogs(logData.logs || []);
+      }
+    } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
@@ -83,7 +73,7 @@ export default function AdminMakingStudio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "processQueue" }),
       });
-      const data = await readApiResponse(res);
+      const data = await res.json();
       alert(`キュー処理完了: 送信 ${data.result?.sent || 0}件, 失敗 ${data.result?.failed || 0}件`);
       fetchStatus();
     } catch (err: any) {
@@ -105,10 +95,14 @@ export default function AdminMakingStudio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "importCsv", csvContent: csvInput }),
       });
-      const data = await readApiResponse(res);
-      setImportResult(`✅ ${data.imported}件の購読者を正常にインポートしました！`);
-      setCsvInput("");
-      fetchStatus();
+      const data = await res.json();
+      if (data.success) {
+        setImportResult(`✅ ${data.imported}件の購読者を正常にインポートしました！`);
+        setCsvInput("");
+        fetchStatus();
+      } else {
+        setImportResult(`❌ インポート失敗: ${data.error}`);
+      }
     } catch (err: any) {
       setImportResult(`❌ エラー: ${err.message}`);
     } finally {
@@ -142,18 +136,18 @@ export default function AdminMakingStudio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      await readApiResponse(res);
-      setSendResult("✅ 配信キューへ登録しました。処理結果を確認しています。");
-      const processRes = await fetch("/api/making-studio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "processQueue" }),
-      });
-      const processData = await readApiResponse(processRes);
-      setSendResult(
-        `✅ キュー処理完了: 送信 ${processData.result?.sent || 0}件, 失敗 ${processData.result?.failed || 0}件`
-      );
-      fetchStatus();
+      const data = await res.json();
+      if (data.success) {
+        setSendResult("✅ 配信キューに登録しました。まもなく送信されます。");
+        await fetch("/api/making-studio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "processQueue" }),
+        });
+        fetchStatus();
+      } else {
+        setSendResult(`❌ 登録失敗: ${data.error}`);
+      }
     } catch (err: any) {
       setSendResult(`❌ エラー: ${err.message}`);
     } finally {
@@ -183,7 +177,7 @@ export default function AdminMakingStudio() {
               <span className="text-2xl">🌿</span>
               <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Making Studio</h1>
               <span className="px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">
-                Independent UI
+                Standalone Live
               </span>
             </div>
             <p className="text-sm text-stone-500 mt-1">
@@ -213,32 +207,19 @@ export default function AdminMakingStudio() {
           </div>
         </div>
 
-        {connectionError && (
-          <div
-            role="alert"
-            aria-live="polite"
-            className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
-          >
-            <strong>Canonical API未接続：</strong> {connectionError}
-            <div className="mt-1 text-xs text-amber-800">
-              数値を0件として扱わず、Owner認証・本番配線が確認できるまで操作を停止しています。
-            </div>
-          </div>
-        )}
-
         {/* 状態サマリーカード */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
             <div className="text-xs font-medium text-stone-500">待機中キュー</div>
-            <div className="text-2xl font-bold text-amber-600 mt-1">{status ? `${status.queue?.pending || 0} 件` : "—"}</div>
+            <div className="text-2xl font-bold text-amber-600 mt-1">{status?.queue?.pending || 0} 件</div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
             <div className="text-xs font-medium text-stone-500">送信完了</div>
-            <div className="text-2xl font-bold text-emerald-600 mt-1">{status ? `${status.queue?.sent || 0} 件` : "—"}</div>
+            <div className="text-2xl font-bold text-emerald-600 mt-1">{status?.queue?.sent || 0} 件</div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
             <div className="text-xs font-medium text-stone-500">登録購読者数</div>
-            <div className="text-2xl font-bold text-blue-600 mt-1">{status ? `${status.totalSubscribers || 0} 名` : "—"}</div>
+            <div className="text-2xl font-bold text-blue-600 mt-1">{status?.totalSubscribers || 0} 名</div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
             <div className="text-xs font-medium text-stone-500">ステップ配信シナリオ</div>
@@ -250,9 +231,9 @@ export default function AdminMakingStudio() {
         <div className="flex border-b border-stone-200 gap-2">
           {[
             { id: "queue", label: "📬 配信キュー & ログ" },
-            { id: "steps", label: "📜 全9話ステップ配信" },
-            { id: "subscribers", label: "👥 顧客 & BizCreate移行" },
-            { id: "composer", label: "✍️ リッチメッセージ作成" },
+            { id: "steps", label: "📜 全9話（現在は閲覧のみ）" },
+            { id: "subscribers", label: "👥 顧客集計 & BizCreate移行" },
+            { id: "composer", label: "✍️ 単発テスト作成" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -273,11 +254,11 @@ export default function AdminMakingStudio() {
             <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
               <h2 className="font-bold text-lg">配信キュー操作</h2>
               <p className="text-sm text-stone-500">
-                Canonical APIのdurable queueを処理します。送信資格情報はこのUIに置かず、WonderLand側のserver adapterだけが使用します。
+                待機中のメールを処理します。SENDGRID_API_KEY が設定されている場合は実送信されます。
               </p>
               <button
                 onClick={handleProcessQueue}
-                disabled={loading || !status}
+                disabled={loading}
                 className="w-full px-4 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 disabled:opacity-50"
               >
                 {loading ? "処理中..." : "▶ キューを処理する"}
@@ -304,6 +285,9 @@ export default function AdminMakingStudio() {
         {activeTab === "steps" && (
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
             <h2 className="font-bold text-lg mb-4">全9話ステップメール</h2>
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              現在はシナリオ一覧の確認画面です。本文編集・話数追加・カテゴリー別シナリオ作成・保存は、まだ接続されていません。
+            </div>
             <div className="space-y-3">
               {stepSeries.map((step) => (
                 <div key={step.stepNumber} className="p-4 rounded-xl border border-stone-200 flex items-start gap-4">
@@ -333,7 +317,7 @@ export default function AdminMakingStudio() {
               />
               <button
                 onClick={handleImportCsv}
-                disabled={loading || !status}
+                disabled={loading}
                 className="mt-3 w-full px-4 py-3 rounded-xl bg-stone-800 text-white font-semibold hover:bg-stone-700 disabled:opacity-50"
               >
                 CSVをインポート
@@ -342,6 +326,9 @@ export default function AdminMakingStudio() {
             </div>
             <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
               <h2 className="font-bold text-lg mb-2">購読者・セグメント状態</h2>
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                現在は登録人数の集計のみです。個人一覧・タグ／セグメント絞り込み・購入状況・配信／開封／クリック履歴は、まだこの画面に接続されていません。
+              </div>
               <div className="text-sm text-stone-600 space-y-2">
                 <p>登録購読者数: <strong>{status?.totalSubscribers || 0}</strong></p>
                 <p>タグ・セグメント情報は API 側の MarketingSubscriber に保持されます。</p>
@@ -352,7 +339,10 @@ export default function AdminMakingStudio() {
 
         {activeTab === "composer" && (
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
-            <h2 className="font-bold text-lg">リッチメッセージ テスト送信</h2>
+            <h2 className="font-bold text-lg">単発リッチメッセージ テスト送信</h2>
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+              ここで作る内容は単発テスト用です。テンプレートやステップシナリオとしての保存・再編集は、まだ接続されていません。
+            </div>
             <input
               type="email"
               value={testEmail}
@@ -393,7 +383,7 @@ export default function AdminMakingStudio() {
             />
             <button
               onClick={handleTestSend}
-              disabled={loading || !status}
+              disabled={loading}
               className="w-full px-4 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 disabled:opacity-50"
             >
               {loading ? "送信中..." : "テスト送信する"}
