@@ -8,13 +8,6 @@ interface QueueSummary {
   total: number;
 }
 
-interface StepItem {
-  stepNumber: number;
-  delayDays: number;
-  title: string;
-  category: string;
-}
-
 interface ScenarioRow {
   id: number;
   name: string;
@@ -390,17 +383,6 @@ export default function AdminMakingStudio() {
     }
   };
 
-  const stepSeries: StepItem[] = status?.stepSeries || [
-    { stepNumber: 1, delayDays: 0, title: "お久しぶりです。お元気ですか？｜Re'naturalより", category: "renatural_step_1" },
-    { stepNumber: 2, delayDays: 1, title: "「売上を追うほど苦しくなった」あの頃の違和感の正体", category: "renatural_step_2" },
-    { stepNumber: 3, delayDays: 2, title: "売上が上がって「怖い」と感じた日｜安心ベースと数字の真理", category: "renatural_step_3" },
-    { stepNumber: 4, delayDays: 3, title: "『大切にする土台』を決めたら、働く時間が1/5になった話", category: "renatural_step_4" },
-    { stepNumber: 5, delayDays: 4, title: "「ファンを作る」のではなく「共鳴する人と出会う」仕組み", category: "renatural_step_5" },
-    { stepNumber: 6, delayDays: 5, title: "日常の8割を「遊び」に変える、オンリーワンの設計図", category: "renatural_step_6" },
-    { stepNumber: 7, delayDays: 6, title: "数字の奴隷から抜け出し、心で巡るビジネスを創る", category: "renatural_step_7" },
-    { stepNumber: 8, delayDays: 7, title: "Re'natural が目指す世界｜あなたがあなたのままで巡る場所", category: "renatural_step_8" },
-    { stepNumber: 9, delayDays: 8, title: "【特別なご案内】新しい物語をここから始めませんか？", category: "renatural_step_9" },
-  ];
 
   return (
     <div className="min-h-screen bg-stone-50 p-6 text-stone-900">
@@ -471,7 +453,7 @@ export default function AdminMakingStudio() {
           </div>
           <div className="bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
             <div className="text-xs font-medium text-stone-500">ステップ配信シナリオ</div>
-            <div className="text-2xl font-bold text-indigo-600 mt-1">全 {stepSeries.length} 話</div>
+            <div className="text-2xl font-bold text-indigo-600 mt-1">{status ? `${status.scenarioCount || 0} 件（有効 ${status.activeScenarioCount || 0}）` : "—"}</div>
           </div>
         </div>
 
