@@ -121,7 +121,7 @@ export default function AdminMakingStudio() {
   const [testSubject, setTestSubject] = useState("Re'natural より大切なお知らせ");
   const [testHeading, setTestHeading] = useState("心地よい暮らしとオンリーワンの仕組み");
   const [testText, setTestText] = useState("数字を追うのをやめたら、毎日の8割が自由な遊びに変わりました。");
-  const [testButtonUrl, setTestButtonUrl] = useState("https://wonderland.renatural.jp/nature-nomad-life");
+  const [testButtonUrl, setTestButtonUrl] = useState("https://www.renatural-lab.com/nature-nomad-life");
   const [testButtonText, setTestButtonText] = useState("Nature Nomad Life を見る");
   const [sendResult, setSendResult] = useState<string | null>(null);
 
@@ -134,7 +134,8 @@ export default function AdminMakingStudio() {
       setStatus(data);
       const logRes = await fetch("/api/making-studio?action=getLogs");
       const logData = await readApiResponse(logRes);
-      setLogs(logData.logs || []);
+      if (!Array.isArray(logData.logs)) throw new Error("配信ログの形式が不正です");
+      setLogs(logData.logs);
     } catch (err: any) {
       setStatus(null);
       setLogs([]);
@@ -497,7 +498,11 @@ export default function AdminMakingStudio() {
             <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
               <h2 className="font-bold text-lg mb-4">最近の配信ログ</h2>
               <div className="space-y-2 max-h-96 overflow-auto">
-                {logs.length === 0 ? (
+                {connectionError ? (
+                  <div role="alert" className="text-sm text-amber-700">配信ログを取得できませんでした。上の接続エラーを確認し、最新状態に更新してください。</div>
+                ) : loading ? (
+                  <div className="text-sm text-stone-500">配信ログを読み込んでいます...</div>
+                ) : logs.length === 0 ? (
                   <div className="text-sm text-stone-400">まだ配信ログはありません。</div>
                 ) : (
                   logs.map((log, idx) => (
